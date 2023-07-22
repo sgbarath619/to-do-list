@@ -1,0 +1,40 @@
+#addItemsContainer{
+    display: flex;
+    flex-direction: column;
+
+}
+
+.item_index_count{
+    font-size: 20px; 
+    padding: 3px; 
+    width: 45px; 
+    text-align: center;
+}
+
+.itemsInputDiv{
+    display: flex; 
+    padding: 5px 0px;
+}
+
+.strikeCheck{
+    margin-right: 10px;
+}
+
+
+#listCardsContainer{
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.noteCard{
+    box-shadow: 3px 1px 10px rgb(155, 155, 155);
+    width: 33rem;
+}
+
+.threeButtons{
+    position: absolute;
+    align-self: bottom;
+    bottom: 0;
+    padding: 12px 0px;
+    
+}
