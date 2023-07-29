@@ -1,6 +1,7 @@
 class AddList{
     constructor(){
         this.addItemCounter = 0;
+        this.isEdit=0;
         this.addItem();
     }
 
@@ -46,6 +47,7 @@ class AddList{
         let tagsArray = tagsElement.value.split(',').map(tag => tag.trim());
         tagsArray = tagsArray.filter(tag => tag !== '');
         let deadline = document.getElementById("addDeadline");
+        let reminder = document.getElementById("addReminder");
 
         if(titleElement.value.trim()=="")titleElement.value="(none)";
         let list = {
@@ -54,7 +56,8 @@ class AddList{
             priority: parseInt(priority.value),
             category: category.value.trim(),
             tags: tagsArray,
-            deadline: deadline.value
+            deadline: deadline.value,
+            reminder: parseInt(reminder.value)
         };
         
         let storageArray=[];
@@ -65,8 +68,18 @@ class AddList{
         storageArray.push(list);
         localStorage.setItem("lists",JSON.stringify(storageArray));
 
+        if(this.isEdit==0){
+            let log = localStorage.getItem("to_do_list_activity_log");
+            if(log == "null" || log == null) log="";
+            else log+="\n";
+            log+= `Added the list ${list.title}.`;
+            localStorage.setItem("to_do_list_activity_log",log);
+        }else this.isEdit--;
+        filter.hideActivityLog();
+
         titleElement.value="";
         priority.value="3";
+        reminder.value="0";
         category.value="General";
         tagsElement.value="";
         // deadline.value = (new Date()).toISOString().slice(0, 16);
@@ -200,10 +213,21 @@ class ListShow{
         let deadline = document.getElementById("addDeadline");
         deadline.value=storageArray[i].deadline;
 
+        let reminder = document.getElementById("addReminder");
+        reminder.value=storageArray[i].reminder;
+
         document.getElementById("addItemsContainer").innerHTML="";
         addList.addItemCounter=0;
         for(let item of storageArray[i].items)
             addList.addItem(item);
+        
+        
+        let log = localStorage.getItem("to_do_list_activity_log");
+        if(log != "" || log != null) log+="\n";
+        log+= `Edited the list ${storageArray[i].title}.`;
+        localStorage.setItem("to_do_list_activity_log",log);
+        addList.isEdit=2;
+        filter.hideActivityLog();
         
         this.deleteList(i);
         this.listShow();
@@ -213,8 +237,18 @@ class ListShow{
         let storageArray=[];
         let storage = localStorage.getItem("lists");
         if(storage!=null) storageArray=JSON.parse(storage);
+
+        if(addList.isEdit==0){
+            let log = localStorage.getItem("to_do_list_activity_log");
+            if(log != "" || log != null) log+="\n";
+            log+= `Deleted the list ${storageArray[i].title}.`;
+            localStorage.setItem("to_do_list_activity_log",log);
+        }else addList.isEdit--;
+        filter.hideActivityLog();
+        
         storageArray.splice(i,1);
         localStorage.setItem("lists",JSON.stringify(storageArray));
+
         this.listShow();
     }
 
@@ -261,6 +295,7 @@ class Filter{
         let filterbyDeadlineFrom = new Date(document.getElementById("filterbyDeadlineFrom").value);
         let filterbyDeadlineTo = new Date(document.getElementById("filterbyDeadlineTo").value);
         let filterbyPriority = parseInt(document.getElementById("filterbyPriority").value);
+        let filterbyStatus = parseInt(document.getElementById("filterbyStatus").value);
         let sortBy = document.getElementById("sortBy").value;
 
         let storageArray=[];
@@ -268,7 +303,7 @@ class Filter{
         if(storage!=null) storageArray=JSON.parse(storage);
 
         let filteredData = storageArray.filter(list => {
-            let f1,f2,f3;
+            let f1,f2,f3,f4;
 
             if(filterbyCategory==="") f1=true;
             else f1 = list.category.toLowerCase().includes(filterbyCategory);
@@ -282,7 +317,13 @@ class Filter{
 
             f3 = filterbyPriority==0 || list.priority === filterbyPriority;
 
-            return f1 && f2 && f3;
+            let thisdeadline = new Date(list.deadline);
+            const currentDate = new Date();
+            const tomorrowDate = new Date(currentDate);
+            tomorrowDate.setDate(tomorrowDate.getDate()+1);
+            f4 = filterbyStatus==0 || (filterbyStatus==1 && thisdeadline>currentDate) || (filterbyStatus==2 && thisdeadline<=currentDate) || (filterbyStatus==3 && thisdeadline==tomorrowDate);
+
+            return f1 && f2 && f3 && f4;
         });
 
         let sortedData = filteredData.sort((a, b) => {
@@ -295,6 +336,17 @@ class Filter{
 
         listShow.listShow(sortedData);
 
+    }
+    showActivityLog(){
+        let log = localStorage.getItem("to_do_list_activity_log");
+        document.getElementById("activityLog").querySelector('p').innerText=log;
+        document.getElementById("showActivityLog").classList.add("hideIt");
+        document.getElementById("hideActivityLog").classList.remove("hideIt");
+    }
+    hideActivityLog(){
+        document.getElementById("activityLog").querySelector('p').innerText="";
+        document.getElementById("showActivityLog").classList.remove("hideIt");
+        document.getElementById("hideActivityLog").classList.add("hideIt");
     }
 }
 
@@ -340,3 +392,49 @@ searchTags.addEventListener("input",function () {
             }
         });
     });
+
+document.addEventListener("DOMContentLoaded", function () {
+    const flexContainer = document.getElementById("listCardsContainer");
+
+    const sortable = new Sortable(flexContainer, {
+      animation: 300, // Animation speed in milliseconds
+      onEnd: function (evt) {
+        let flexContainer2 = document.getElementById("listCardsContainer");
+        const item = evt.item; // The dragged element
+        const items = Array.from(flexContainer2.children); // All the sortable items
+        const order = items.map((item) => parseInt(item.id.slice(9))); // Get the IDs in their current order
+
+        let storageArray=[];
+        let storage = localStorage.getItem("lists");
+        if(storage!=null) storageArray=JSON.parse(storage);
+        
+        let newOrder = [];
+        for(let i of order)
+            newOrder.push(storageArray[i]);
+        
+        localStorage.setItem("lists",JSON.stringify(newOrder));
+        listShow.listShow();
+        console.log(newOrder);
+      },
+    });
+  });
+
+function checkDeadlines() {
+    let storageArray=[];
+    let storage = localStorage.getItem("lists");
+    if(storage!=null) storageArray=JSON.parse(storage);
+    const now = new Date();
+  
+    storageArray.forEach((list) => {
+        const deadline = new Date(list.deadline);
+        const timeDifference = deadline - now;
+    
+        if (timeDifference > 0 && timeDifference <= 3600000* list.reminder) {
+            alert(`The list ${list.title} has a deadline in ${list.reminder} hours!`);
+            list.reminder=0;
+        }
+    });
+    localStorage.setItem("lists",JSON.stringify(storageArray));
+}
+checkDeadlines();
+setInterval(checkDeadlines, 5000); // 5 seconds

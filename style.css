@@ -1,3 +1,7 @@
+.hideIt{
+    display: none;
+}
+
 #addItemsContainer{
     display: flex;
     flex-direction: column;
